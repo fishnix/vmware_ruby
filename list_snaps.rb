@@ -3,14 +3,6 @@ require 'awesome_print'
 require 'trollop'
 require 'rbvmomi/trollop'
 
-def folder?(obj)
-  if obj.respond_to?(:children)
-    true
-  else
-    false
-  end
-end
-
 opts = Trollop.options do
   banner <<-EOS
 Script to list VMWare snaps.
@@ -38,6 +30,27 @@ end
 
 Trollop.die("must specify host") unless opts[:host]
 
+def folder?(obj)
+  if obj.respond_to?(:children)
+    true
+  else
+    false
+  end
+end
+
+def snap_list(obj)
+  snaps = Array.new
+  if obj.childSnapshotList.nil?
+    nil
+  else
+    obj.childSnapshotList.each do |s|
+      snaps << s
+      snaps.concat snap_list(s) unless s.childSnapshotList.nil?
+    end
+  end
+  snaps
+end
+
 vim = RbVmomi::VIM.connect opts
 dc = vim.serviceInstance.find_datacenter(opts[:datacenter]) or fail "datacenter not found"
 
@@ -49,6 +62,10 @@ dc.vmFolder.inventory_flat({ :VirtualMachine => :all, :Folder => :all }).each do
         snap_name = s.name.to_s
         snap_time = s.createTime.localtime.to_s
         puts "\t#{snap_time}\t#{snap_name}"
+        
+        snap_list(s).each do |i|
+          puts "\t#{i.createTime.localtime.to_s}\t#{i.name}"
+        end
       end
     end
   end
