@@ -26,6 +26,8 @@ VM location options:
 
 Other options:
   EOS
+
+  opt :one, "Output on one line for easier greps"
 end
 
 Trollop.die("must specify host") unless opts[:host]
@@ -57,14 +59,22 @@ dc = vim.serviceInstance.find_datacenter(opts[:datacenter]) or fail "datacenter 
 dc.vmFolder.inventory_flat({ :VirtualMachine => :all, :Folder => :all }).each do |v,i|
   unless folder?(v)
     unless v.snapshot.nil?
-      puts "#{v.name}:"
+      puts "#{v.name}:" unless opts[:one]
       v.snapshot.rootSnapshotList.each do |s|
         snap_name = s.name.to_s
         snap_time = s.createTime.localtime.to_s
-        puts "\t#{snap_time}\t#{snap_name}"
+        if opts[:one]
+          puts "#{v.name}:\t#{snap_time}\t#{snap_name}"
+        else
+          puts "\t#{snap_time}\t#{snap_name}"
+        end
         
         snap_list(s).each do |i|
-          puts "\t#{i.createTime.localtime.to_s}\t#{i.name}"
+          if opts[:one]
+            puts "#{v.name}:\t#{i.createTime.localtime.to_s}\t#{i.name}"
+          else
+            puts "\t#{i.createTime.localtime.to_s}\t#{i.name}"
+          end
         end
       end
     end
